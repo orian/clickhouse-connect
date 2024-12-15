@@ -91,8 +91,6 @@ def read_dynamic_prefix(source: ByteSource) -> List[ClickHouseType]:
     serialize_version = source.read_uint64()
     if serialize_version == 1:
         source.read_leb128()  # max dynamic types, we ignore this value
-    elif serialize_version != 2:
-        raise DataError('Unrecognized dynamic structure version')
     num_variants = source.read_leb128()
     variant_types = [get_from_name(source.read_leb128_str()) for _ in range(num_variants)]
     variant_types.append(STRING_DATA_TYPE)
