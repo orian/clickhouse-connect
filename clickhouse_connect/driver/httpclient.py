@@ -30,6 +30,7 @@ from clickhouse_connect.driver.query import QueryResult, QueryContext
 from clickhouse_connect.driver.binding import quote_identifier, bind_query
 from clickhouse_connect.driver.summary import QuerySummary
 from clickhouse_connect.driver.transform import NativeTransform
+from clickhouse_connect.driver.transform import JSONTransform
 
 logger = logging.getLogger(__name__)
 columns_only_re = re.compile(r'LIMIT 0\s*$', re.IGNORECASE)
@@ -82,7 +83,8 @@ class HttpClient(Client):
                  tls_mode: Optional[str] = None,
                  proxy_path: str = '',
                  form_encode_query_params: bool = False,
-                 rename_response_column: Optional[str] = None):
+                 rename_response_column: Optional[str] = None,
+                 read_format: str = 'Native'):
         """
         Create an HTTP ClickHouse Connect client
         See clickhouse_connect.get_client for parameters
@@ -135,8 +137,12 @@ class HttpClient(Client):
 
         self._reported_libs = set()
         self.headers['User-Agent'] = common.build_client_name(client_name)
-        self._read_format = self._write_format = 'Native'
-        self._transform = NativeTransform()
+        self._write_format = 'Native'
+        self._read_format = read_format
+        if read_format == 'Native':
+            self._transform = NativeTransform()
+        elif read_format == 'JSONCompact':
+            self._transform = JSONTransform()
 
         # There are use cases when the client needs to disable timeouts.
         if connect_timeout is not None:
@@ -606,7 +612,6 @@ class HttpClient(Client):
             params.update(external_data.query_params)
             fields = external_data.form_data
         else:
-            params.update(bind_params)
             body = final_query
             fields = None
         return body, params, fields
