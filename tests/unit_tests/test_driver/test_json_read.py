@@ -1,15 +1,9 @@
 import http
-from ipaddress import IPv4Address
-from uuid import UUID
 
 from urllib3 import HTTPResponse
 
 from clickhouse_connect import datatypes
-from clickhouse_connect.driver.insert import InsertContext
-from clickhouse_connect.driver.query import QueryContext
 from clickhouse_connect.driver.transform import JSONTransform
-from tests.helpers import str_source
-from tests.unit_tests.test_driver.binary import NESTED_BINARY
 
 parse_response = JSONTransform().parse_response
 

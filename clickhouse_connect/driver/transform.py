@@ -1,6 +1,5 @@
 import json
 import logging
-from urllib3.response import HTTPResponse
 from typing import Union
 
 from clickhouse_connect.datatypes import registry
@@ -10,6 +9,8 @@ from clickhouse_connect.driver.insert import InsertContext
 from clickhouse_connect.driver.npquery import NumpyResult
 from clickhouse_connect.driver.query import QueryResult, QueryContext
 from clickhouse_connect.driver.compression import get_compressor
+from clickhouse_connect.driver.types import ByteSource
+from urllib3.response import HTTPResponse
 
 _EMPTY_CTX = QueryContext()
 
@@ -17,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 class JSONTransform:
+    @staticmethod
+    def parse_from_http_response(
+            response: HTTPResponse,
+            context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
+
+        return JSONTransform.parse_response(response, context)
 
     @staticmethod
     def parse_response(response: HTTPResponse, context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
@@ -38,13 +45,19 @@ class JSONTransform:
 
 
 class NativeTransform:
-    # pylint: disable=too-many-locals
     @staticmethod
-    def parse_response(response: HTTPResponse, context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
+    def parse_from_http_response(
+            response: HTTPResponse,
+            context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
         from driver.ctypes import RespBuffCls
         from driver.httputil import ResponseSource
 
         source = RespBuffCls(ResponseSource(response))
+        return NativeTransform.parse_response(source, context)
+
+    # pylint: disable=too-many-locals
+    @staticmethod
+    def parse_response(source: ByteSource, context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
         names = []
         col_types = []
         block_num = 0

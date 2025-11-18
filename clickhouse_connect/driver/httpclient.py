@@ -20,10 +20,9 @@ from clickhouse_connect.datatypes.base import ClickHouseType
 from clickhouse_connect.driver.client import Client
 from clickhouse_connect.driver.common import dict_copy, coerce_bool, coerce_int, dict_add
 from clickhouse_connect.driver.compression import available_compression
-from clickhouse_connect.driver.ctypes import RespBuffCls
 from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError, ProgrammingError
 from clickhouse_connect.driver.external import ExternalData
-from clickhouse_connect.driver.httputil import ResponseSource, get_pool_manager, get_response_data, \
+from clickhouse_connect.driver.httputil import get_pool_manager, get_response_data, \
     default_pool_manager, get_proxy_manager, all_managers, check_env_proxy, check_conn_expiration
 from clickhouse_connect.driver.insert import InsertContext
 from clickhouse_connect.driver.query import QueryResult, QueryContext
@@ -299,9 +298,8 @@ class HttpClient(Client):
                                      retries=self.query_retries,
                                      fields=fields,
                                      server_wait=not context.streaming)
-        byte_source = RespBuffCls(ResponseSource(response))  # pylint: disable=not-callable
         context.set_response_tz(self._check_tz_change(response.headers.get('X-ClickHouse-Timezone')))
-        query_result = self._transform.parse_response(byte_source, context)
+        query_result = self._transform.parse_from_http_response(response, context)
         query_result.summary = self._summary(response)
         return query_result
 
@@ -612,6 +610,7 @@ class HttpClient(Client):
             params.update(external_data.query_params)
             fields = external_data.form_data
         else:
+            params.update(bind_params)
             body = final_query
             fields = None
         return body, params, fields
