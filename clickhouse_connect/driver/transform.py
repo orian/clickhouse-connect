@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Union
 
@@ -7,15 +8,53 @@ from clickhouse_connect.driver.exceptions import StreamCompleteException, Stream
 from clickhouse_connect.driver.insert import InsertContext
 from clickhouse_connect.driver.npquery import NumpyResult
 from clickhouse_connect.driver.query import QueryResult, QueryContext
-from clickhouse_connect.driver.types import ByteSource
 from clickhouse_connect.driver.compression import get_compressor
+from clickhouse_connect.driver.types import ByteSource
+from urllib3.response import HTTPResponse
 
 _EMPTY_CTX = QueryContext()
 
 logger = logging.getLogger(__name__)
 
 
+class JSONTransform:
+    @staticmethod
+    def parse_from_http_response(
+            response: HTTPResponse,
+            context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
+
+        return JSONTransform.parse_response(response, context)
+
+    @staticmethod
+    def parse_response(response: HTTPResponse, context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
+        result_set = []
+        names = []
+        col_types = []
+        resp_data = response.data
+        if resp_data:
+            resp_json = json.loads(resp_data)
+            for col in resp_json["meta"]:
+                names.append(col["name"])
+                col_types.append(registry.get_from_name(col["type"]))
+            result_set = resp_json["data"]
+
+        if context.use_numpy:
+            raise NotImplementedError("JSONCompact cannot be used for numpy, use Native response format")
+
+        return QueryResult(result_set, None, tuple(names), tuple(col_types), False)
+
+
 class NativeTransform:
+    @staticmethod
+    def parse_from_http_response(
+            response: HTTPResponse,
+            context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
+        from driver.ctypes import RespBuffCls
+        from driver.httputil import ResponseSource
+
+        source = RespBuffCls(ResponseSource(response))
+        return NativeTransform.parse_response(source, context)
+
     # pylint: disable=too-many-locals
     @staticmethod
     def parse_response(source: ByteSource, context: QueryContext = _EMPTY_CTX) -> Union[NumpyResult, QueryResult]:
