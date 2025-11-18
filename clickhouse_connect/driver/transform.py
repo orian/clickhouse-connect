@@ -31,16 +31,16 @@ class JSONTransform:
         names = []
         col_types = []
         resp_data = response.data
-        headers = response.headers
         if resp_data:
             resp_json = json.loads(resp_data)
-            # if context.use_numpy:
-            #     res_types = [col.dtype if hasattr(col, 'dtype') else 'O' for col in first_block]
-            #     return NumpyResult(gen(), tuple(names), tuple(col_types), res_types, source)
             for col in resp_json["meta"]:
                 names.append(col["name"])
                 col_types.append(registry.get_from_name(col["type"]))
             result_set = resp_json["data"]
+
+        if context.use_numpy:
+            raise NotImplementedError("JSONCompact cannot be used for numpy, use Native response format")
+
         return QueryResult(result_set, None, tuple(names), tuple(col_types), False)
 
 
