@@ -4,6 +4,7 @@
     <profiles>
         <default>
             <load_balancing>random</load_balancing>
+            <allow_suspicious_low_cardinality_types>1</allow_suspicious_low_cardinality_types>
         </default>
     </profiles>
 
